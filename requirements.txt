@@ -1,0 +1,5 @@
+numpy
+pandas
+scikit-learn
+streamlit
+& ".\.ven\Scripts\python.exe" -m streamlit run app.py
