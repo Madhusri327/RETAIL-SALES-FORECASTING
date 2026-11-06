@@ -1,9 +1,7 @@
 import pandas as pd
 import streamlit as st
 
-from dataset.train import train_model
-
-
+from dataset.train import train_model 
 st.set_page_config(
     page_title="Retail Sales Forecast",
     page_icon="📈",
@@ -65,7 +63,7 @@ st.title("Sales forecast")
 
 with st.spinner("Training the forecasting model on store history…"):
     try:
-        model, df, metrics = get_model_bundle()
+        model, classifier, df, metrics, sales_threshold = get_model_bundle()
     except Exception as error:
         st.error(f"Could not prepare the forecasting model: {error}")
         st.stop()
@@ -107,6 +105,17 @@ summary_cols[2].metric(
     help=f"Exact mean absolute error: ${metrics['mae']:,.2f}",
 )
 
+st.markdown("#### Logistic regression · high/low sales holdout scores")
+classification_cols = st.columns(4)
+classification_cols[0].metric("Accuracy", f"{metrics['accuracy']:.1%}")
+classification_cols[1].metric("Precision", f"{metrics['precision']:.1%}")
+classification_cols[2].metric("Recall", f"{metrics['recall']:.1%}")
+classification_cols[3].metric("F1 score", f"{metrics['f1_score']:.1%}")
+st.caption(
+    f"High sales means weekly sales at or above the training-period median "
+    f"(${metrics['sales_threshold']:,.2f}). Scores are measured on the later holdout period."
+)
+
 history = df.loc[
     (df["store_id"] == store_id) & (df["department"] == department)
 ].sort_values("date").tail(26)
@@ -128,6 +137,7 @@ if submitted:
 
     model_input = forecast_row.drop(columns=["weekly_sales", "date"])
     forecast_value = float(model.predict(model_input)[0])
+    predicted_sales_class = "High" if int(classifier.predict(model_input)[0]) == 1 else "Low"
     recent_average = float(history.tail(8)["weekly_sales"].mean())
     change = forecast_value / recent_average - 1 if recent_average else 0
 
@@ -140,7 +150,7 @@ if submitted:
             f"{change:+.1%} vs recent 8-week average",
         )
         st.caption(
-            f"Model: Random Forest · Validation RMSE ${metrics['rmse']:,.0f}"
+            f"Sales category: {predicted_sales_class} · Logistic regression threshold ${sales_threshold:,.0f}"
         )
     with result_cols[1]:
         st.markdown("#### Recent weekly sales")
